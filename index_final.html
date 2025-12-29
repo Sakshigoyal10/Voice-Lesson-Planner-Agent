@@ -1,0 +1,1417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NCERT Lesson Plan Generator</title>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+
+  <!-- Optional: ResponsiveVoice fallback (kept, but browser TTS is primary) -->
+  <script src="https://code.responsivevoice.org/responsivevoice.js?key=FREE"></script>
+
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+
+  <style>
+    :root {
+      --primary: #1e40af;
+      --primary-light: #3b82f6;
+      --primary-dark: #1e3a8a;
+      --secondary: #059669;
+      --secondary-light: #10b981;
+      --accent: #f59e0b;
+      --danger: #dc2626;
+      --bg-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      --card-bg: rgba(255, 255, 255, 0.95);
+      --text-primary: #1f2937;
+      --text-secondary: #6b7280;
+      --border-color: #e5e7eb;
+      --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+      --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1);
+      --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1);
+      --shadow-xl: 0 20px 25px -5px rgba(0,0,0,0.1);
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+      --radius-xl: 24px;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: Inter, -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-gradient);
+      min-height: 100vh;
+      color: var(--text-primary);
+      line-height: 1.6;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 50%, #2563eb 100%);
+      padding: 20px;
+      text-align: center;
+      color: white;
+      box-shadow: var(--shadow-lg);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .header::before {
+      content: "";
+      position: absolute;
+      top: -50px;
+      left: -50px;
+      width: 200px;
+      height: 200px;
+      background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+      animation: shimmer 15s infinite linear;
+    }
+
+    @keyframes shimmer {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .header-content { position: relative; z-index: 1; }
+
+    .logo-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 15px;
+      margin-bottom: 10px;
+    }
+
+    .logo {
+      width: 60px;
+      height: 60px;
+      background: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      color: var(--primary);
+      font-weight: 700;
+      box-shadow: var(--shadow-md);
+    }
+
+    .header h1 {
+      font-size: 1.8rem;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+    }
+
+    .header p {
+      font-size: 1rem;
+      opacity: 0.9;
+      margin-top: 5px;
+    }
+
+    .header-badge {
+      display: inline-block;
+      background: rgba(255,255,255,0.2);
+      padding: 5px 15px;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      margin-top: 10px;
+      backdrop-filter: blur(10px);
+    }
+
+    .main-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 30px 20px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 25px;
+    }
+
+    @media (max-width: 968px) {
+      .main-container { grid-template-columns: 1fr; }
+    }
+
+    .card {
+      background: var(--card-bg);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-xl);
+      overflow: hidden;
+      backdrop-filter: blur(20px);
+    }
+
+    .card-header {
+      background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .card-header i { font-size: 1.3rem; color: var(--primary); }
+    .card-header h2 { font-size: 1.1rem; font-weight: 600; color: var(--text-primary); }
+    .card-body { padding: 24px; }
+
+    .mode-tabs {
+      display: flex;
+      background: #f1f5f9;
+      border-radius: var(--radius-md);
+      padding: 5px;
+      margin-bottom: 24px;
+    }
+
+    .mode-tab {
+      flex: 1;
+      padding: 12px 20px;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      font-size: 0.95rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+      border-radius: var(--radius-sm);
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .mode-tab:hover { color: var(--primary); }
+    .mode-tab.active {
+      background: white;
+      color: var(--primary);
+      box-shadow: var(--shadow-md);
+    }
+
+    .form-group { margin-bottom: 20px; }
+
+    .form-label {
+      display: block;
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: var(--text-primary);
+      margin-bottom: 8px;
+    }
+
+    .form-label i { margin-right: 6px; color: var(--primary); }
+
+    .form-control {
+      width: 100%;
+      padding: 12px 16px;
+      border: 2px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      font-size: 0.95rem;
+      font-family: inherit;
+      transition: all 0.3s ease;
+      background: white;
+    }
+
+    .form-control:focus {
+      outline: none;
+      border-color: var(--primary-light);
+      box-shadow: 0 0 0 4px rgba(59,130,246,0.1);
+    }
+
+    .form-control::placeholder { color: #9ca3af; }
+
+    select.form-control {
+      cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      background-size: 20px;
+      padding-right: 40px;
+    }
+
+    textarea.form-control { resize: vertical; min-height: 100px; }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+    }
+
+    @media (max-width: 500px) {
+      .form-row { grid-template-columns: 1fr; }
+    }
+
+    .duration-section {
+      background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+      border-radius: var(--radius-md);
+      padding: 20px;
+      margin-bottom: 20px;
+      border: 1px solid #bae6fd;
+    }
+
+    .duration-section-title {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--primary);
+      margin-bottom: 15px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .duration-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+      margin-bottom: 15px;
+    }
+
+    .duration-presets {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 15px;
+    }
+
+    .preset-btn {
+      padding: 8px 14px;
+      border: 2px solid var(--border-color);
+      border-radius: 25px;
+      background: white;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    .preset-btn:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+      background: #f0f7ff;
+    }
+
+    .preset-btn.active {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+    }
+
+    .total-duration {
+      background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+      padding: 15px 20px;
+      border-radius: var(--radius-sm);
+      text-align: center;
+      border: 2px solid #a7f3d0;
+    }
+
+    .total-duration-label {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      margin-bottom: 5px;
+    }
+
+    .total-duration-value {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--secondary);
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 14px 28px;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-family: inherit;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+      color: white;
+      box-shadow: 0 4px 15px rgba(30,64,175,0.4);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(30,64,175,0.5);
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-block { width: 100%; }
+
+    .voice-section { display: none; }
+    .voice-section.active { display: block; }
+    .text-section { display: none; }
+    .text-section.active { display: block; }
+
+    .voice-recorder {
+      text-align: center;
+      padding: 60px 20px;
+      background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+      border-radius: var(--radius-md);
+      border: 2px dashed var(--border-color);
+      min-height: 400px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .record-btn {
+      width: 140px;
+      height: 140px;
+      border-radius: 50%;
+      border: none;
+      background: linear-gradient(135deg, var(--danger) 0%, #ef4444 100%);
+      color: white;
+      font-size: 3.5rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 8px 25px rgba(220,38,38,0.4);
+      position: relative;
+    }
+
+    .record-btn:hover {
+      transform: scale(1.05);
+      box-shadow: 0 10px 30px rgba(220,38,38,0.5);
+    }
+
+    .record-btn.recording {
+      animation: pulse 1.5s infinite;
+      background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%);
+      box-shadow: 0 8px 25px rgba(22,163,74,0.4);
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(220,38,38,0.7); }
+      50% { transform: scale(1.05); }
+      70% { box-shadow: 0 0 0 20px rgba(220,38,38,0); }
+      100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(220,38,38,0); }
+    }
+
+    .record-status {
+      margin-top: 25px;
+      font-size: 1.1rem;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    .voice-instructions {
+      margin-top: 30px;
+      padding: 20px;
+      background: rgba(255,255,255,0.8);
+      border-radius: var(--radius-md);
+      max-width: 400px;
+    }
+
+    .voice-instructions h4 {
+      color: var(--primary);
+      margin-bottom: 12px;
+      font-size: 1rem;
+    }
+
+    .voice-instructions ul { list-style: none; text-align: left; }
+    .voice-instructions li {
+      padding: 8px 0;
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+
+    .voice-instructions li i { color: var(--secondary); margin-top: 3px; }
+
+    .speaking-indicator {
+      display: none;
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: var(--primary-light);
+      color: #fff;
+      padding: 12px 24px;
+      border-radius: 25px;
+      box-shadow: 0 4px 15px rgba(59,130,246,0.4);
+      z-index: 1000;
+      font-weight: 600;
+      animation: fadeIn 0.3s ease;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .speaking-indicator.hindi {
+      background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    }
+
+    .speaking-indicator .stop-btn {
+      background: rgba(255,255,255,0.3);
+      border: none;
+      color: white;
+      padding: 5px 10px;
+      border-radius: 15px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      margin-left: 10px;
+    }
+
+    .speaking-indicator .stop-btn:hover { background: rgba(255,255,255,0.5); }
+
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+    .response-container {
+      min-height: 400px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .response-area {
+      flex: 1;
+      background: #f8fafc;
+      border-radius: var(--radius-md);
+      padding: 20px;
+      overflow-y: auto;
+      max-height: 400px;
+    }
+
+    .response-message {
+      padding: 16px 20px;
+      border-radius: var(--radius-md);
+      margin-bottom: 15px;
+      animation: slideIn 0.3s ease;
+    }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .response-message.ai { background: white; border-left: 4px solid var(--primary); box-shadow: var(--shadow-sm); }
+    .response-message.success { background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); border-left: 4px solid var(--secondary); }
+    .response-message.error { background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); border-left: 4px solid var(--danger); }
+    .response-message.loading { background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border-left: 4px solid var(--primary-light); }
+    .response-message.user { background: #eff6ff; border-left: 4px solid var(--primary-light); }
+
+    .response-message pre {
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      font-family: inherit;
+      margin: 0;
+      font-size: 0.95rem;
+      line-height: 1.6;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-secondary);
+    }
+
+    .empty-state i { font-size: 4rem; color: #e5e7eb; margin-bottom: 20px; }
+    .empty-state h3 { font-size: 1.2rem; color: var(--text-primary); margin-bottom: 10px; }
+
+    .download-section {
+      display: none;
+      padding-top: 20px;
+      border-top: 1px solid var(--border-color);
+      margin-top: 20px;
+      animation: fadeIn 0.5s ease;
+    }
+
+    .download-section.visible { display: block; }
+
+    .download-title { text-align: center; margin-bottom: 15px; }
+    .download-title h3 { font-size: 1.1rem; color: var(--text-primary); }
+    .download-title p { font-size: 0.9rem; color: var(--text-secondary); }
+
+    .download-buttons { display: flex; gap: 15px; }
+
+    .download-btn {
+      flex: 1;
+      padding: 16px 20px;
+      border: 2px solid var(--border-color);
+      border-radius: var(--radius-md);
+      background: white;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-align: center;
+    }
+
+    .download-btn:hover {
+      border-color: var(--primary);
+      background: #f8fafc;
+      transform: translateY(-3px);
+      box-shadow: var(--shadow-md);
+    }
+
+    .download-btn i {
+      font-size: 2rem;
+      margin-bottom: 10px;
+      display: block;
+    }
+
+    .download-btn.docx i { color: #2b579a; }
+    .download-btn.pdf i { color: #dc2626; }
+    .download-btn span { font-weight: 600; font-size: 0.95rem; }
+
+    .spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(255,255,255,0.3);
+      border-radius: 50%;
+      border-top-color: white;
+      animation: spin 1s ease-in-out infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .connection-status {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      padding: 10px 20px;
+      border-radius: 30px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: var(--shadow-lg);
+      z-index: 1000;
+      transition: all 0.3s ease;
+    }
+
+    .connection-status.connected {
+      background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+      color: var(--secondary);
+    }
+
+    .connection-status.disconnected {
+      background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+      color: var(--danger);
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      animation: statusPulse 2s infinite;
+    }
+
+    .connected .status-dot { background: var(--secondary); }
+    .disconnected .status-dot { background: var(--danger); }
+
+    @keyframes statusPulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .tts-status {
+      position: fixed;
+      bottom: 70px;
+      right: 20px;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      box-shadow: var(--shadow-md);
+      z-index: 999;
+      display: none;
+    }
+
+    .tts-status.visible { display: flex; align-items: center; gap: 8px; }
+    .tts-status.success { background: #d1fae5; color: #065f46; }
+    .tts-status.warning { background: #fef3c7; color: #92400e; }
+    .tts-status.error { background: #fee2e2; color: #991b1b; }
+
+    .tips-card { background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border: none; }
+    .tips-card .card-header { background: transparent; border-bottom: 1px solid rgba(0,0,0,0.1); }
+    .tips-card .card-header i { color: var(--accent); }
+
+    .tips-list { list-style: none; }
+    .tips-list li {
+      padding: 10px 0;
+      border-bottom: 1px solid rgba(0,0,0,0.05);
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      font-size: 0.9rem;
+    }
+
+    .tips-list li:last-child { border-bottom: none; }
+    .tips-list li i { color: var(--accent); margin-top: 3px; }
+
+    .footer {
+      text-align: center;
+      padding: 20px;
+      color: rgba(255,255,255,0.8);
+      font-size: 0.9rem;
+    }
+
+    .footer a { color: white; text-decoration: none; }
+
+    @media (max-width: 768px) {
+      .header h1 { font-size: 1.4rem; }
+      .main-container { padding: 15px; gap: 15px; }
+      .card-body { padding: 16px; }
+      .btn { padding: 12px 20px; font-size: 0.9rem; }
+      .download-buttons { flex-direction: column; }
+      .duration-row { grid-template-columns: 1fr; }
+      .duration-presets { justify-content: center; }
+      .record-btn { width: 120px; height: 120px; font-size: 3rem; }
+    }
+
+    .response-area::-webkit-scrollbar { width: 8px; }
+    .response-area::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
+    .response-area::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 4px; }
+    .response-area::-webkit-scrollbar-thumb:hover { background: #a1a1a1; }
+  </style>
+</head>
+
+<body>
+  <!-- Speaking Indicator -->
+  <div id="speakingIndicator" class="speaking-indicator">
+    <i class="fas fa-volume-up"></i>
+    <span id="speakingLang">Speaking...</span>
+    <button class="stop-btn" onclick="stopSpeaking()">
+      <i class="fas fa-stop"></i> Stop
+    </button>
+  </div>
+
+  <!-- TTS Status Badge -->
+  <div id="ttsStatus" class="tts-status">
+    <i class="fas fa-info-circle"></i>
+    <span id="ttsStatusText"></span>
+  </div>
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header-content">
+      <div class="logo-container">
+        <div class="logo"><i class="fas fa-graduation-cap"></i></div>
+      </div>
+      <h1>NCERT LESSON PLANNER</h1>
+      <p>AI-Powered Lesson Plan Generator</p>
+      <div class="header-badge">
+        <i class="fas fa-robot"></i> Powered by Groq AI
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="main-container">
+    <!-- Input Section -->
+    <div class="card">
+      <div class="card-header">
+        <i class="fas fa-edit"></i>
+        <h2>Create Lesson Plan</h2>
+      </div>
+      <div class="card-body">
+        <!-- Mode Tabs -->
+        <div class="mode-tabs">
+          <button class="mode-tab active" data-mode="text" onclick="switchMode('text')">
+            <i class="fas fa-keyboard"></i> Text Input
+          </button>
+          <button class="mode-tab" data-mode="voice" onclick="switchMode('voice')">
+            <i class="fas fa-microphone"></i> Voice Chat
+          </button>
+        </div>
+
+        <!-- Text Section -->
+        <div class="text-section active" id="textSection">
+          <div class="form-group">
+            <label class="form-label"><i class="fas fa-book"></i> Topic</label>
+            <input type="text" id="topic" class="form-control" placeholder="e.g., Addition of Two-Digit Numbers" />
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label"><i class="fas fa-graduation-cap"></i> Class</label>
+              <select id="classLevel" class="form-control">
+                <option value="Class 1">Class 1</option>
+                <option value="Class 2" selected>Class 2</option>
+                <option value="Class 3">Class 3</option>
+                <option value="Class 4">Class 4</option>
+                <option value="Class 5">Class 5</option>
+                <option value="Class 6">Class 6</option>
+                <option value="Class 7">Class 7</option>
+                <option value="Class 8">Class 8</option>
+                <option value="Class 9">Class 9</option>
+                <option value="Class 10">Class 10</option>
+                <option value="Class 11">Class 11</option>
+                <option value="Class 12">Class 12</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label"><i class="fas fa-flask"></i> Subject</label>
+              <select id="subject" class="form-control">
+                <option value="Mathematics">Mathematics</option>
+                <option value="Science">Science</option>
+                <option value="English">English</option>
+                <option value="Hindi">Hindi</option>
+                <option value="Social Science">Social Science</option>
+                <option value="Environmental Studies">EVS</option>
+                <option value="Physics">Physics</option>
+                <option value="Chemistry">Chemistry</option>
+                <option value="Biology">Biology</option>
+                <option value="Computer Science">Computer Science</option>
+                <option value="Physical Education">Physical Education</option>
+                <option value="Art">Art</option>
+                <option value="Music">Music</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label"><i class="fas fa-language"></i> Language</label>
+            <select id="language" class="form-control">
+              <option value="English">English</option>
+              <option value="Hindi">Hindi</option>
+              <option value="Kannada">Kannada</option>
+              <option value="Tamil">Tamil</option>
+              <option value="Telugu">Telugu</option>
+              <option value="Malayalam">Malayalam</option>
+              <option value="Marathi">Marathi</option>
+              <option value="Bengali">Bengali</option>
+              <option value="Gujarati">Gujarati</option>
+              <option value="Punjabi">Punjabi</option>
+            </select>
+          </div>
+
+          <div class="duration-section">
+            <div class="duration-section-title">
+              <i class="fas fa-clock"></i> Session Duration Settings
+            </div>
+
+            <div class="duration-row">
+              <div class="form-group" style="margin-bottom:0;">
+                <label class="form-label" style="font-size:0.85rem;">Number of Sessions</label>
+                <select id="numSessions" class="form-control" onchange="updateTotalDuration()">
+                  <option value="1">1 Session</option>
+                  <option value="2">2 Sessions</option>
+                  <option value="3">3 Sessions</option>
+                  <option value="4" selected>4 Sessions</option>
+                  <option value="5">5 Sessions</option>
+                  <option value="6">6 Sessions</option>
+                  <option value="7">7 Sessions</option>
+                  <option value="8">8 Sessions</option>
+                </select>
+              </div>
+
+              <div class="form-group" style="margin-bottom:0;">
+                <label class="form-label" style="font-size:0.85rem;">Duration per Session</label>
+                <select id="sessionDuration" class="form-control" onchange="updateTotalDuration()">
+                  <option value="15">15 minutes</option>
+                  <option value="20">20 minutes</option>
+                  <option value="25">25 minutes</option>
+                  <option value="30">30 minutes</option>
+                  <option value="35">35 minutes</option>
+                  <option value="40" selected>40 minutes</option>
+                  <option value="45">45 minutes</option>
+                  <option value="50">50 minutes</option>
+                  <option value="55">55 minutes</option>
+                  <option value="60">60 minutes</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="duration-presets">
+              <button class="preset-btn active" onclick="setDurationPreset(4, 40)">
+                <i class="fas fa-star"></i> Standard (4×40m)
+              </button>
+              <button class="preset-btn" onclick="setDurationPreset(2, 45)">
+                Short (2×45m)
+              </button>
+              <button class="preset-btn" onclick="setDurationPreset(6, 35)">
+                Extended (6×35m)
+              </button>
+              <button class="preset-btn" onclick="setDurationPreset(1, 60)">
+                Single (1×60m)
+              </button>
+            </div>
+
+            <div class="total-duration">
+              <div class="total-duration-label">Total Lesson Duration</div>
+              <div class="total-duration-value" id="totalDurationDisplay">160 minutes (2h 40m)</div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label"><i class="fas fa-align-left"></i> Additional Content/Instructions (Optional)</label>
+            <textarea id="content" class="form-control" rows="4"
+              placeholder="Add any specific points, concepts, or instructions you want included in the lesson plan..."></textarea>
+          </div>
+
+          <button class="btn btn-primary btn-block" id="generateTextBtn" onclick="generateFromText()">
+            <i class="fas fa-magic"></i> Generate Lesson Plan
+          </button>
+        </div>
+
+        <!-- Voice Section -->
+        <div class="voice-section" id="voiceSection">
+          <div class="voice-recorder">
+            <button class="record-btn" id="recordBtn" onclick="toggleRecording()">
+              <i class="fas fa-microphone" id="recordIcon"></i>
+            </button>
+            <p class="record-status" id="recordStatus">Tap to start speaking</p>
+
+            <div class="voice-instructions">
+              <h4><i class="fas fa-info-circle"></i> How to use Voice Chat</h4>
+              <ul>
+                <li><i class="fas fa-check-circle"></i> Click the microphone and speak your request</li>
+                <li><i class="fas fa-check-circle"></i> Mention topic, class, subject in your speech</li>
+                <li><i class="fas fa-check-circle"></i> Example: "Create a lesson plan for Class 5 Mathematics on Fractions"</li>
+                <li><i class="fas fa-check-circle"></i> You can speak in Hindi or English - AI will respond accordingly</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Response Section -->
+    <div class="card">
+      <div class="card-header">
+        <i class="fas fa-robot"></i>
+        <h2>AI Response</h2>
+      </div>
+      <div class="card-body response-container">
+        <div class="response-area" id="responseArea">
+          <div class="empty-state" id="emptyState">
+            <i class="fas fa-chalkboard-teacher"></i>
+            <h3>Ready to Create</h3>
+            <p>Enter a topic or use voice to generate your NCERT-compliant lesson plan</p>
+          </div>
+        </div>
+
+        <div class="download-section" id="downloadSection">
+          <div class="download-title">
+            <h3><i class="fas fa-download"></i> Download Lesson Plan</h3>
+            <p>Choose your preferred format</p>
+          </div>
+          <div class="download-buttons">
+            <button class="download-btn docx" onclick="downloadFile('docx')">
+              <i class="fas fa-file-word"></i>
+              <span>Download DOCX</span>
+            </button>
+            <button class="download-btn pdf" onclick="downloadFile('pdf')">
+              <i class="fas fa-file-pdf"></i>
+              <span>Download PDF</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tips Card -->
+    <div class="card tips-card" style="grid-column: 1 / -1;">
+      <div class="card-header">
+        <i class="fas fa-lightbulb"></i>
+        <h2>Pro Tips for Better Lesson Plans</h2>
+      </div>
+      <div class="card-body">
+        <ul class="tips-list">
+          <li><i class="fas fa-check-circle"></i> <span><strong>Be Specific:</strong> Instead of "Numbers", try "Addition of Two-Digit Numbers with Regrouping"</span></li>
+          <li><i class="fas fa-check-circle"></i> <span><strong>Voice Mode:</strong> Speak clearly and include topic, subject, and class level in your request</span></li>
+          <li><i class="fas fa-check-circle"></i> <span><strong>Text Mode:</strong> Use session settings to customize the duration of your lesson plans</span></li>
+          <li><i class="fas fa-check-circle"></i> <span><strong>Hindi Support:</strong> Both voice input and AI response support Hindi languages</span></li>
+        </ul>
+      </div>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <p>© 2024 NCERT Lesson Plan Generator — Built for Teachers</p>
+  </footer>
+
+  <div class="connection-status disconnected" id="connectionStatus">
+    <span class="status-dot"></span>
+    <span id="statusText">Connecting...</span>
+  </div>
+
+  <script>
+    // Socket.IO Connection
+    const socket = io();
+
+    let currentLessonId = null;
+    let isRecording = false;
+    let mediaRecorder = null;
+    let audioChunks = [];
+    let isSpeaking = false;
+
+    socket.on('connect', () => {
+      console.log('✅ Connected to server');
+      updateConnectionStatus(true);
+    });
+
+    socket.on('disconnect', () => {
+      console.log('❌ Disconnected from server');
+      updateConnectionStatus(false);
+    });
+
+    // UPDATED: always speak when server says speak:true
+    socket.on('airesponse', (data) => {
+      console.log('AI Response:', data);
+
+      addResponse(data.text, data.downloadid ? 'success' : 'ai');
+
+      if (data.speak) {
+        const detectedLang = data.language || detectLanguageFromText(data.text);
+        speakText(data.text, detectedLang);
+      }
+
+      if (data.downloadid) {
+        currentLessonId = data.downloadid;
+        showDownloadSection();
+      }
+
+      const btn = document.getElementById('generateTextBtn');
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-magic"></i> Generate Lesson Plan';
+      }
+    });
+
+    function updateConnectionStatus(connected) {
+      const statusEl = document.getElementById('connectionStatus');
+      const statusText = document.getElementById('statusText');
+      if (connected) {
+        statusEl.classList.remove('disconnected');
+        statusEl.classList.add('connected');
+        statusText.textContent = 'Connected';
+      } else {
+        statusEl.classList.remove('connected');
+        statusEl.classList.add('disconnected');
+        statusText.textContent = 'Disconnected';
+      }
+    }
+
+    // ========= TTS (browser first; ResponsiveVoice fallback) =========
+
+    const voiceMapping = {
+      hindi: 'Hindi Female',
+      hi: 'Hindi Female',
+      english: 'UK English Female',
+      en: 'UK English Female',
+      // Fallback mapping for Indian languages to Hindi voice in ResponsiveVoice
+      kannada: 'Hindi Female',
+      tamil: 'Hindi Female',
+      telugu: 'Hindi Female',
+      malayalam: 'Hindi Female',
+      marathi: 'Hindi Female',
+      bengali: 'Hindi Female',
+      gujarati: 'Hindi Female',
+      punjabi: 'Hindi Female',
+    };
+
+    function isResponsiveVoiceReady() {
+      return (typeof responsiveVoice !== 'undefined' && responsiveVoice.voiceSupport && responsiveVoice.voiceSupport());
+    }
+
+    function detectLanguageFromText(text) {
+      if (!text) return 'English';
+      const hindiPattern = /[\u0900-\u097F]/;
+      if (hindiPattern.test(text)) return 'Hindi';
+
+      const hindiKeywords = ['है', 'और', 'का', 'की', 'में', 'से', 'कक्षा', 'विषय', 'पाठ', 'योजना', 'कृपया', 'धन्यवाद'];
+      for (const k of hindiKeywords) {
+        if (text.includes(k)) return 'Hindi';
+      }
+      return 'English';
+    }
+
+    function getVoiceName(language) {
+      const lang = (language || 'English').toLowerCase().trim();
+      for (const [key, voice] of Object.entries(voiceMapping)) {
+        if (lang.includes(key) || key.includes(lang)) return voice;
+      }
+      return 'UK English Female';
+    }
+
+    function showSpeakingIndicator(language) {
+      const indicator = document.getElementById('speakingIndicator');
+      const langText = document.getElementById('speakingLang');
+      if (!indicator) return;
+
+      indicator.style.display = 'flex';
+      const lang = (language || 'English').toLowerCase();
+      if (lang.includes('hindi') || lang.includes('hi')) {
+        indicator.classList.add('hindi');
+        langText.textContent = 'Speaking in Hindi...';
+      } else {
+        indicator.classList.remove('hindi');
+        langText.textContent = 'Speaking in English...';
+      }
+    }
+
+    function hideSpeakingIndicator() {
+      const indicator = document.getElementById('speakingIndicator');
+      if (indicator) indicator.style.display = 'none';
+    }
+
+    function showTTSStatus(message, type) {
+      const statusEl = document.getElementById('ttsStatus');
+      const statusText = document.getElementById('ttsStatusText');
+      if (!statusEl || !statusText) return;
+
+      statusText.textContent = message;
+      statusEl.className = `tts-status visible ${type}`;
+    }
+
+    function hideTTSStatus() {
+      const statusEl = document.getElementById('ttsStatus');
+      if (!statusEl) return;
+      setTimeout(() => statusEl.classList.remove('visible'), 2000);
+    }
+
+    // UPDATED: Browser TTS (speechSynthesis) primary, ResponsiveVoice fallback
+    function speakText(text, language) {
+      if (!text || !text.trim()) return;
+
+      stopSpeaking();
+
+      // Browser TTS (primary)
+      if ('speechSynthesis' in window) {
+        try {
+          const utter = new SpeechSynthesisUtterance(text);
+          const lang = (language || 'English').toLowerCase();
+
+          utter.lang = (lang.includes('hindi') || lang.includes('hi')) ? 'hi-IN' : 'en-US';
+          utter.rate = utter.lang === 'hi-IN' ? 0.90 : 1.00;
+
+          utter.onstart = () => {
+            showSpeakingIndicator(language);
+            isSpeaking = true;
+            showTTSStatus('Speaking...', 'success');
+          };
+          utter.onend = () => {
+            hideSpeakingIndicator();
+            isSpeaking = false;
+            hideTTSStatus();
+          };
+          utter.onerror = () => {
+            hideSpeakingIndicator();
+            isSpeaking = false;
+            showTTSStatus('Speech error occurred', 'error');
+          };
+
+          window.speechSynthesis.speak(utter);
+          return;
+        } catch (e) {
+          console.error('speechSynthesis failed, fallback:', e);
+        }
+      }
+
+      // ResponsiveVoice (fallback)
+      if (isResponsiveVoiceReady()) {
+        const voiceName = getVoiceName(language);
+        showSpeakingIndicator(language);
+        isSpeaking = true;
+
+        responsiveVoice.speak(text, voiceName, {
+          rate: voiceName.includes('Hindi') ? 0.9 : 1,
+          onstart: () => showTTSStatus('Speaking...', 'success'),
+          onend: () => { hideSpeakingIndicator(); isSpeaking = false; hideTTSStatus(); },
+          onerror: () => { hideSpeakingIndicator(); isSpeaking = false; showTTSStatus('Speech error occurred', 'error'); }
+        });
+        return;
+      }
+
+      showTTSStatus('TTS not available in this browser.', 'error');
+    }
+
+    function stopSpeaking() {
+      if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+      if (typeof responsiveVoice !== 'undefined') responsiveVoice.cancel();
+      hideSpeakingIndicator();
+      isSpeaking = false;
+    }
+
+    // ========= Mode Switching (FIXED) =========
+    function switchMode(mode) {
+      document.querySelectorAll('.mode-tab').forEach(tab => tab.classList.remove('active'));
+      const btn = document.querySelector(`.mode-tab[data-mode="${mode}"]`);
+      if (btn) btn.classList.add('active');
+
+      const textSection = document.getElementById('textSection');
+      const voiceSection = document.getElementById('voiceSection');
+
+      if (textSection) textSection.classList.toggle('active', mode === 'text');
+      if (voiceSection) voiceSection.classList.toggle('active', mode === 'voice');
+
+      if (mode === 'text' && isRecording) stopRecording();
+
+      stopSpeaking();
+    }
+
+    // ========= Duration Helpers =========
+    function updateTotalDuration() {
+      const numSessions = parseInt(document.getElementById('numSessions').value, 10);
+      const sessionDuration = parseInt(document.getElementById('sessionDuration').value, 10);
+
+      const totalMinutes = numSessions * sessionDuration;
+      const hours = Math.floor(totalMinutes / 60);
+      const minutes = totalMinutes % 60;
+
+      let displayText = `${totalMinutes} minutes`;
+      if (hours > 0) displayText = `${totalMinutes} minutes (${hours}h ${minutes > 0 ? minutes + 'm' : ''})`;
+
+      document.getElementById('totalDurationDisplay').textContent = displayText;
+      updatePresetButtons(numSessions, sessionDuration);
+    }
+
+    function setDurationPreset(sessions, duration) {
+      document.getElementById('numSessions').value = sessions;
+      document.getElementById('sessionDuration').value = duration;
+      updateTotalDuration();
+    }
+
+    function updatePresetButtons(sessions, duration) {
+      const presets = [
+        { sessions: 4, duration: 40 },
+        { sessions: 2, duration: 45 },
+        { sessions: 6, duration: 35 },
+        { sessions: 1, duration: 60 }
+      ];
+
+      document.querySelectorAll('.preset-btn').forEach((btn, index) => {
+        if (presets[index] && presets[index].sessions === sessions && presets[index].duration === duration) {
+          btn.classList.add('active');
+        } else {
+          btn.classList.remove('active');
+        }
+      });
+    }
+
+    function getDurationSettings() {
+      return {
+        sessionduration: parseInt(document.getElementById('sessionDuration').value, 10) || 40,
+        numsessions: parseInt(document.getElementById('numSessions').value, 10) || 4
+      };
+    }
+
+    // ========= Text Mode =========
+    function generateFromText() {
+      const topic = document.getElementById('topic').value.trim();
+      const content = document.getElementById('content').value.trim();
+      const subject = document.getElementById('subject').value;
+      const classLevel = document.getElementById('classLevel').value;
+      const language = document.getElementById('language').value;
+      const durationSettings = getDurationSettings();
+
+      if (!topic && !content) {
+        addResponse('Please enter a topic or some content to generate the lesson plan.', 'error');
+        return;
+      }
+
+      const btn = document.getElementById('generateTextBtn');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span> Generating...';
+
+      clearResponses();
+      addResponse(`Generating lesson plan... (${durationSettings.numsessions} sessions × ${durationSettings.sessionduration} mins)`, 'loading');
+
+      // IMPORTANT: matches server handler `textmessage` and field names used in main.py
+      socket.emit('textmessage', {
+        topic: topic || 'Lesson Topic',
+        content: content,
+        subject: subject,
+        classlevel: classLevel,
+        language: language,
+        sessionduration: durationSettings.sessionduration,
+        numsessions: durationSettings.numsessions
+      });
+
+      // safety unlock
+      setTimeout(() => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-magic"></i> Generate Lesson Plan';
+      }, 60000);
+    }
+
+    // ========= Voice Recording =========
+    async function toggleRecording() {
+      if (isRecording) stopRecording();
+      else await startRecording();
+    }
+
+    async function startRecording() {
+      try {
+        stopSpeaking();
+
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+        audioChunks = [];
+
+        mediaRecorder.ondataavailable = (event) => {
+          if (event.data.size > 0) audioChunks.push(event.data);
+        };
+
+        mediaRecorder.onstop = () => {
+          const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+          sendAudioToServer(audioBlob);
+          stream.getTracks().forEach(track => track.stop());
+        };
+
+        mediaRecorder.start();
+        isRecording = true;
+        updateRecordingUI(true);
+      } catch (error) {
+        console.error('Error accessing microphone:', error);
+        addResponse('Could not access microphone. Please check permissions.', 'error');
+      }
+    }
+
+    function stopRecording() {
+      if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+      isRecording = false;
+      updateRecordingUI(false);
+    }
+
+    function updateRecordingUI(recording) {
+      const btn = document.getElementById('recordBtn');
+      const icon = document.getElementById('recordIcon');
+      const status = document.getElementById('recordStatus');
+
+      if (recording) {
+        btn.classList.add('recording');
+        icon.classList.remove('fa-microphone');
+        icon.classList.add('fa-stop');
+        status.textContent = 'Recording... Tap to stop';
+        status.style.color = '#dc2626';
+        status.style.fontWeight = '600';
+      } else {
+        btn.classList.remove('recording');
+        icon.classList.remove('fa-stop');
+        icon.classList.add('fa-microphone');
+        status.textContent = 'Tap to start speaking';
+        status.style.color = '';
+        status.style.fontWeight = '';
+      }
+    }
+
+    function sendAudioToServer(audioBlob) {
+      clearResponses();
+      addResponse('Processing your voice request...', 'loading');
+
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64Audio = reader.result.split(',')[1];
+        // IMPORTANT: matches server handler `voicemessage`
+        socket.emit('voicemessage', { audio: base64Audio });
+      };
+      reader.readAsDataURL(audioBlob);
+    }
+
+    // ========= Response Handling =========
+    function clearResponses() {
+      const responseArea = document.getElementById('responseArea');
+      responseArea.innerHTML = '';
+      hideDownloadSection();
+    }
+
+    function addResponse(text, type = 'ai') {
+      const responseArea = document.getElementById('responseArea');
+      const emptyState = document.getElementById('emptyState');
+      if (emptyState) emptyState.remove();
+
+      const messageDiv = document.createElement('div');
+      messageDiv.className = `response-message ${type}`;
+      messageDiv.innerHTML = `<pre>${escapeHtml(text)}</pre>`;
+      responseArea.appendChild(messageDiv);
+      responseArea.scrollTop = responseArea.scrollHeight;
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // ========= Download Handling =========
+    function showDownloadSection() {
+      document.getElementById('downloadSection').classList.add('visible');
+    }
+
+    function hideDownloadSection() {
+      document.getElementById('downloadSection').classList.remove('visible');
+    }
+
+    async function downloadFile(format) {
+      if (!currentLessonId) {
+        addResponse('No lesson plan available for download.', 'error');
+        return;
+      }
+
+      try {
+        addResponse(`Preparing ${format.toUpperCase()} download...`, 'loading');
+
+        const response = await fetch(`/download/${currentLessonId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ format })
+        });
+
+        if (!response.ok) {
+          const errText = await response.text();
+          console.error('Download error response:', errText);
+          throw new Error(`Download failed: ${response.status}`);
+        }
+
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `NCERT_LessonPlan.${format}`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+
+        window.URL.revokeObjectURL(url);
+        addResponse(`${format.toUpperCase()} downloaded successfully!`, 'success');
+      } catch (error) {
+        console.error('Download error:', error);
+        addResponse(`Failed to download ${format.toUpperCase()}. Please check server logs.`, 'error');
+      }
+    }
+
+    // Shortcuts
+    document.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        const activeMode = document.querySelector('.mode-tab.active')?.dataset?.mode;
+        if (activeMode === 'text') generateFromText();
+      }
+      if (e.key === 'Escape') stopSpeaking();
+    });
+
+    // Init
+    document.addEventListener('DOMContentLoaded', () => {
+      updateTotalDuration();
+
+      setTimeout(() => {
+        // Not required anymore, but keep informational badge
+        if ('speechSynthesis' in window) showTTSStatus('Browser TTS ready', 'success');
+        else if (isResponsiveVoiceReady()) showTTSStatus('ResponsiveVoice ready', 'success');
+        else showTTSStatus('TTS engine not available', 'warning');
+      }, 1200);
+
+      console.log('NCERT Lesson Plan Generator initialized');
+    });
+
+    // expose for debug
+    window.stopSpeaking = stopSpeaking;
+  </script>
+</body>
+</html>
